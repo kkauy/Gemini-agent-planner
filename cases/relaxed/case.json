@@ -1,0 +1,10 @@
+{
+  "species": "dog",
+  "vocalization": "barking",
+  "body_language": ["loose_posture", "relaxed_mouth"],
+  "context": {
+    "owner_present": true,
+    "environment": "outdoor_walk"
+  },
+  "image_path": "cases/relaxed/haggis.jpg"
+}
