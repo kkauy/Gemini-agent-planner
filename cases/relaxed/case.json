@@ -1,10 +1,20 @@
 {
-  "species": "dog",
-  "vocalization": "barking",
-  "body_language": ["loose_posture", "relaxed_mouth"],
-  "context": {
-    "owner_present": true,
-    "environment": "outdoor_walk"
-  },
-  "image_path": "cases/relaxed/haggis.jpg"
-}
+    "species": "dog",
+    "vocalization": "barking",
+    "body_language": [
+      "loose_posture",
+      "relaxed_mouth",
+      "soft_eyes",
+      "ears_relaxed"
+    ],
+    "context": {
+      "owner_present": true,
+      "environment": "outdoor_walk"
+    },
+    "image_paths": [
+      "cases/relaxed/dada.jpg",
+      "cases/relaxed/haggis.jpg",
+      "cases/relaxed/luke.jpg"
+    ]
+  }
+  

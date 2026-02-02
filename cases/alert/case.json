@@ -1,0 +1,19 @@
+{
+    "species": "dog",
+    "vocalization": "barking",
+    "body_language": [
+      "stiff_posture",
+      "ears_forward",
+      "weight_forward"
+    ],
+    "context": {
+      "owner_present": true,
+      "environment": "outdoor_walk"
+    },
+    "image_paths": [
+      "cases/alert/choco.jpg",
+      "cases/alert/kiwi.jpg",
+      "cases/alert/tobie.jpg"
+    ]
+  }
+  
