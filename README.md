@@ -19,7 +19,7 @@ cd Gemini-agent-planner
 3️.Create virtual environment (recommended)
 python -m venv .venv
 source .venv/bin/activate   # macOS / Linux
-# .venv\Scripts\activate    # Windows
+ .venv\Scripts\activate     Windows
 
 4️.Install dependencies
 pip install -r requirements.txt
@@ -40,11 +40,11 @@ GEMINI_API_KEY=your_google_gemini_api_key
 GEMINI_MODEL=gemini-2.5-pro
 
 
-Important
+**Important**
 
 .env.local is not committed to GitHub
 
-Each teammate/judge uses their own API key
+Each judge uses their own API key
 
 API keys can be rotated safely without code changes
 
