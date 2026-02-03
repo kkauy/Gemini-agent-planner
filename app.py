@@ -1,7 +1,6 @@
-import os, json, mimetypes
+import os, json, mimetypes,time
 from pathlib import Path
 from typing import Optional
-
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
@@ -115,7 +114,7 @@ def validate_output(obj: dict):
 
     return True, None    
 
-MAX_RETRIES = 2  
+MAX_RETRIES = 2
 
 def run_agent_with_retry(prompt: str, infer_fn):
     last_err = None
@@ -127,8 +126,28 @@ def run_agent_with_retry(prompt: str, infer_fn):
 
         if err:
             last_err = f"Gemini error: {err}"
+
+            # 429 / rate limit → cooldown
             if "429" in str(err) or "RESOURCE_EXHAUSTED" in str(err):
-                break
+                return SAFE_FALLBACK, {
+                    "status": "fallback",
+                    "attempt": attempt,
+                    "error": last_err,
+                    "raw_text": last_text,
+                    "retry_after_s": 35,
+                }
+
+            # 403 / leaked key → stop retry (no point retrying)
+            if "403" in str(err) or "PERMISSION_DENIED" in str(err):
+                return SAFE_FALLBACK, {
+                    "status": "fallback",
+                    "attempt": attempt,
+                    "error": last_err,
+                    "raw_text": last_text,
+                    "retry_after_s": None,
+                }
+
+            # other errors → retry (up to MAX_RETRIES)
             continue
 
         obj, parse_err = safe_parse_json(text)
@@ -149,7 +168,33 @@ def run_agent_with_retry(prompt: str, infer_fn):
             + ". reasoning must be a JSON array of strings (no 0:). No extra text."
         )
 
-    return SAFE_FALLBACK, {"status": "fallback", "attempt": MAX_RETRIES + 1, "error": last_err, "raw_text": last_text}
+    return SAFE_FALLBACK, {
+        "status": "fallback",
+        "attempt": MAX_RETRIES + 1,
+        "error": last_err,
+        "raw_text": last_text,
+        "retry_after_s": None,
+    }
+
+def safe_parse_json(text: str):
+    if not text or not text.strip():
+        return None, "Empty response"
+
+    t = text.strip()
+    # handle ```json ... ```
+    if "```" in t:
+        t = t.replace("```json", "").replace("```", "").strip()
+
+    # if model adds leading text, try locate first '{'
+    i = t.find("{")
+    if i != -1:
+        t = t[i:]
+
+    try:
+        return json.loads(t), None
+    except json.JSONDecodeError as e:
+        return None, str(e)
+
 
 
 # helper function to normalize the reasoning output
@@ -176,121 +221,7 @@ def image_part_from_bytes(img_bytes: bytes, filename: str):
     if not mime_type:
         mime_type = "image/jpeg"
     return types.Part.from_bytes(data=img_bytes, mime_type=mime_type)
-
-def extract_json_from_response(text: str) -> str:
-    """Get JSON string from model output (JSON may be wrapped in markdown or have leading text)."""
-    if not text or not text.strip():
-        return ""
-    text = text.strip()
-
-    # Strip markdown code block if present
-    if "```json" in text:
-        start = text.index("```json") + 7
-        end = text.index("```", start) if "```" in text[start:] else len(text)
-        return text[start:end].strip()
-    if text.startswith("```"):
-        start = text.index("\n", 3) + 1 if "\n" in text[3:] else 3
-        end = text.index("```", start) if "```" in text[start:] else len(text)
-        return text[start:end].strip()
-
-    # Find first { and try balanced braces to end of JSON object
-    start = text.find("{")
-    if start == -1:
-        return text
-    depth = 0
-    in_string = False
-    escape = False
-    quote = None
-    for i in range(start, len(text)):
-        c = text[i]
-        if escape:
-            escape = False
-            continue
-        if c == "\\" and in_string:
-            escape = True
-            continue
-        if in_string:
-            if c == quote:
-                in_string = False
-            continue
-        if c in ('"', "'"):
-            in_string = True
-            quote = c
-            continue
-        if c == "{":
-            depth += 1
-        elif c == "}":
-            depth -= 1
-            if depth == 0:
-                return text[start : i + 1]
-    return text[start:]
-
-def safe_parse_json(text: str):
-    """Try parse JSON; return (obj, err)."""
-    if not text or not text.strip():
-        return None, "Empty response"
-    extracted = extract_json_from_response(text)
-    try:
-        return json.loads(extracted), None
-    except json.JSONDecodeError as e:
-        repaired = _try_repair_truncated_json(extracted)
-        if repaired:
-            try:
-                return json.loads(repaired), None
-            except json.JSONDecodeError:
-                pass
-        return None, str(e)
-
-def _try_repair_truncated_json(s: str) -> Optional[str]:
-    """Attempt to close truncated JSON. Returns only if repaired string parses as valid JSON."""
-    s = s.strip()
-    if not s.startswith("{"):
-        return None
-    stack = []  # '[' or '{'
-    in_string = False
-    escape = False
-    i = 0
-    while i < len(s):
-        c = s[i]
-        if escape:
-            escape = False
-            i += 1
-            continue
-        if c == '\\':
-            escape = True
-            i += 1
-            continue
-        if in_string:
-            if c == '"':
-                in_string = False
-            i += 1
-            continue
-        if c == '"':
-            in_string = True
-            i += 1
-            continue
-        if c == '{':
-            stack.append('}')
-            i += 1
-            continue
-        if c == '[':
-            stack.append(']')
-            i += 1
-            continue
-        if c == '}' or c == ']':
-            if stack and stack[-1] == c:
-                stack.pop()
-            i += 1
-            continue
-        i += 1
-    if in_string:
-        s += '"'
-    s += "".join(reversed(stack))
-    try:
-        json.loads(s)
-        return s
-    except json.JSONDecodeError:
-        return None
+    
 
 def call_gemini(prompt: str, case_obj: dict, image_bytes_list: list):
     full_prompt = prompt + "\n\nINPUT_JSON:\n" + json.dumps(case_obj, ensure_ascii=False)
@@ -376,6 +307,10 @@ if run:
     if used_fallback:
         st.warning("Output not valid JSON. Using safe fallback for demo.")
         st.caption(f"Reason: {meta['error']}")
+        retry_s = meta.get("retry_after_s")
+        if retry_s:
+            st.session_state.next_allowed = time.time() + int(retry_s)
+
         st.code(meta.get("raw_text") or "", language="text")
 
         # ONLY rebuild obj when fallback
