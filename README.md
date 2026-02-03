@@ -115,6 +115,13 @@ Schema-valid
 
 Clearly labeled as a fallback in the UI
 
+## Background
+
+This project was originally built during the Google Gemini Hackathon
+and later extended with production-style validation, retries,
+and deterministic fallback behavior.
+
+
 This guarantees a smooth experience for hackathon judging and live demos.
 
 **End-to-End Flow**
