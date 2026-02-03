@@ -115,12 +115,6 @@ Schema-valid
 
 Clearly labeled as a fallback in the UI
 
-## Background
-
-This project was originally built during the Google Gemini Hackathon
-and later extended with production-style validation, retries,
-and deterministic fallback behavior.
-
 
 This guarantees a smooth experience for hackathon judging and live demos.
 
@@ -139,3 +133,9 @@ If invalid → retry with corrective prompt
 If still invalid → return safe fallback
 
 UI renders results consistently
+
+## Background
+
+This project was originally built during the Google Gemini Hackathon
+and later extended with production-style validation, retries,
+and deterministic fallback behavior.
