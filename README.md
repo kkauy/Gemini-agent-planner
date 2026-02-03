@@ -139,3 +139,8 @@ UI renders results consistently
 This project was originally built during the Google Gemini Hackathon
 and later extended with production-style validation, retries,
 and deterministic fallback behavior.
+
+Note: During evaluation, the Gemini free-tier quota may be exhausted.
+In such cases, the system demonstrates its designed safe fallback behavior
+instead of failing silently or crashing.
+
